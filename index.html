@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="description" content="Prosta karta zlecenia dla warsztatu samochodowego">
+<link rel="manifest" href="manifest.json">
+<title>Karta Warsztat</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111827;background:#f3f4f6}
+*{box-sizing:border-box} body{margin:0} .app{max-width:720px;margin:auto;padding:12px 12px 90px}
+header{position:sticky;top:0;z-index:5;background:#f3f4f6;padding:8px 0 12px}
+h1{margin:0;font-size:25px} h2{font-size:18px;margin:0 0 10px}
+.card{background:white;border-radius:16px;padding:15px;margin:10px 0;box-shadow:0 1px 5px #0001}
+label{display:block;font-size:13px;font-weight:700;margin:9px 0 5px}
+input,textarea,button,select{font:inherit;width:100%;border-radius:11px;border:1px solid #d1d5db;padding:11px;background:white}
+textarea{min-height:72px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+button{border:0;background:#111827;color:white;font-weight:700;cursor:pointer;margin-top:8px}
+button.secondary{background:#e5e7eb;color:#111827}.danger{background:#b91c1c}
+.topnav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.part{border:1px solid #e5e7eb;border-radius:12px;padding:10px;margin:8px 0}
+.partgrid{display:grid;grid-template-columns:1.5fr .8fr .8fr auto;gap:7px;align-items:end}
+.partgrid button{width:42px;margin:0;padding:10px}
+.total{font-size:19px;font-weight:800}.profit{font-size:21px;font-weight:900}
+.small{font-size:12px;color:#6b7280}.hidden{display:none!important}
+.item{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin:8px 0}
+.item b{font-size:16px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e5e7eb;font-size:11px;font-weight:700}
+footer{color:#6b7280;text-align:center;font-size:11px;margin-top:20px}
+@media(max-width:520px){.partgrid{grid-template-columns:1fr 1fr 1fr}.partgrid input:first-child{grid-column:1/-1}.row3{grid-template-columns:1fr 1fr}.row3 label:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <h1>🔧 Karta Warsztat</h1>
+  <div class="small">Prosta karta zlecenia • dane zapisują się w telefonie</div>
+</header>
+
+<div class="topnav">
+  <button onclick="showNew()">➕ Nowe zlecenie</button>
+  <button class="secondary" onclick="showHistory()">📋 Historia</button>
+</div>
+
+<section id="formView">
+<div class="card">
+<h2>📅 Zlecenie</h2>
+<div class="row">
+<div><label>Data</label><input id="date" type="date"></div>
+<div><label>Telefon</label><input id="phone" inputmode="tel" placeholder="np. 600 000 000"></div>
+</div>
+<label>Klient</label><input id="client" placeholder="Imię i nazwisko">
+<label>Samochód — marka / model</label><input id="car" placeholder="np. Opel Astra">
+<div class="row3">
+<div><label>Nr rejestracyjny</label><input id="reg" placeholder="WI 12345"></div>
+<div><label>Przebieg</label><input id="mileage" inputmode="numeric" placeholder="km"></div>
+<div><label>VIN</label><input id="vin" placeholder="VIN"></div>
+</div>
+<label>Opis zlecenia</label><textarea id="job" placeholder="Co ma zostać zrobione?"></textarea>
+</div>
+
+<div class="card">
+<h2>🔩 Części</h2>
+<div id="parts"></div>
+<button class="secondary" onclick="addPart()">➕ Dodaj część</button>
+<div class="row">
+<div><label>Koszt części</label><input id="partsCost" readonly></div>
+<div><label>Dla klienta</label><input id="partsSale" readonly></div>
+</div>
+</div>
+
+<div class="card">
+<h2>🛠️ Robocizna</h2>
+<label>Kwota robocizny</label><input id="labor" inputmode="decimal" placeholder="0,00 zł" oninput="calc()">
+</div>
+
+<div class="card">
+<h2>💰 Podsumowanie</h2>
+<div class="row">
+<div><div class="small">Części — koszt</div><div class="total" id="sumCost">0,00 zł</div></div>
+<div><div class="small">Części — klient</div><div class="total" id="sumSale">0,00 zł</div></div>
+</div>
+<div style="margin-top:12px"><div class="small">Razem dla klienta</div><div class="total" id="grand">0,00 zł</div></div>
+<div style="margin-top:12px"><div class="small">Zarobek</div><div class="profit" id="profit">0,00 zł</div></div>
+</div>
+
+<div class="card">
+<h2>📝 Uwagi</h2>
+<textarea id="notes" placeholder="Dodatkowe informacje..."></textarea>
+<button onclick="saveOrder()">💾 Zapisz zlecenie</button>
+<button class="secondary" onclick="clearForm()">🧹 Wyczyść formularz</button>
+</div>
+</section>
+
+<section id="historyView" class="hidden">
+<div class="card">
+<h2>📋 Historia</h2>
+<input id="search" placeholder="Szukaj: klient, rejestracja, auto..." oninput="renderHistory()">
+<div id="history"></div>
+</div>
+<div class="card">
+<h2>📊 Podsumowanie miesiąca</h2>
+<div class="row">
+<div><div class="small">Sprzedaż</div><div class="total" id="monthSales">0,00 zł</div></div>
+<div><div class="small">Zarobek</div><div class="profit" id="monthProfit">0,00 zł</div></div>
+</div>
+</div>
+</section>
+
+<footer>Dane zleceń są przechowywane lokalnie w pamięci przeglądarki telefonu. Nie wpisuj danych klientów do repozytorium GitHub.</footer>
+</div>
+
+<script>
+const KEY='karta_warsztat_orders_v1';
+let orders=JSON.parse(localStorage.getItem(KEY)||'[]');
+let editingId=null;
+
+function money(n){return (Number(n)||0).toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})+' zł'}
+function num(v){return parseFloat(String(v||'').replace(',','.'))||0}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function today(){return new Date().toISOString().slice(0,10)}
+
+function addPart(name='',cost='',sale=''){
+ const box=document.createElement('div'); box.className='part';
+ box.innerHTML=`<div class="partgrid">
+ <input class="pname" placeholder="Nazwa części" value="${esc(name)}">
+ <input class="pcost" inputmode="decimal" placeholder="Koszt" value="${esc(cost)}">
+ <input class="psale" inputmode="decimal" placeholder="Klient" value="${esc(sale)}">
+ <button class="danger" onclick="this.closest('.part').remove();calc()">×</button></div>`;
+ document.getElementById('parts').appendChild(box);
+ box.querySelectorAll('input').forEach(x=>x.addEventListener('input',calc));
+ calc();
+}
+function getParts(){
+ return [...document.querySelectorAll('.part')].map(p=>({
+  name:p.querySelector('.pname').value.trim(),
+  cost:num(p.querySelector('.pcost').value),
+  sale:num(p.querySelector('.psale').value)
+ })).filter(p=>p.name||p.cost||p.sale);
+}
+function calc(){
+ const ps=getParts(), c=ps.reduce((a,p)=>a+p.cost,0), s=ps.reduce((a,p)=>a+p.sale,0), l=num(document.getElementById('labor').value);
+ document.getElementById('partsCost').value=money(c);
+ document.getElementById('partsSale').value=money(s);
+ document.getElementById('sumCost').textContent=money(c);
+ document.getElementById('sumSale').textContent=money(s);
+ document.getElementById('grand').textContent=money(s+l);
+ document.getElementById('profit').textContent=money((s-c)+l);
+}
+function val(id){return document.getElementById(id).value}
+function setv(id,v){document.getElementById(id).value=v??''}
+
+function clearForm(){
+ editingId=null; setv('date',today()); ['phone','client','car','reg','mileage','vin','job','labor','notes'].forEach(x=>setv(x,''));
+ document.getElementById('parts').innerHTML=''; addPart(); calc();
+}
+function saveOrder(){
+ const parts=getParts(), labor=num(val('labor')), cost=parts.reduce((a,p)=>a+p.cost,0), sale=parts.reduce((a,p)=>a+p.sale,0);
+ const order={
+  id:editingId||Date.now(),date:val('date')||today(),phone:val('phone'),client:val('client'),car:val('car'),
+  reg:val('reg'),mileage:val('mileage'),vin:val('vin'),job:val('job'),parts,labor,
+  partsCost:cost,partsSale:sale,total:sale+labor,profit:(sale-cost)+labor,notes:val('notes')
+ };
+ if(!order.client&&!order.car&&!order.job){alert('Wpisz przynajmniej klienta, auto albo opis zlecenia.');return}
+ const i=orders.findIndex(x=>x.id===order.id);
+ if(i>=0) orders[i]=order; else orders.unshift(order);
+ localStorage.setItem(KEY,JSON.stringify(orders));
+ alert('Zlecenie zapisane ✅');
+ clearForm(); showHistory();
+}
+function showNew(){document.getElementById('formView').classList.remove('hidden');document.getElementById('historyView').classList.add('hidden')}
+function showHistory(){document.getElementById('formView').classList.add('hidden');document.getElementById('historyView').classList.remove('hidden');renderHistory()}
+function renderHistory(){
+ const q=(document.getElementById('search').value||'').toLowerCase();
+ const list=orders.filter(o=>[o.client,o.car,o.reg,o.phone].join(' ').toLowerCase().includes(q));
+ document.getElementById('history').innerHTML=list.length?list.map(o=>`
+ <div class="item">
+ <span class="badge">${esc(o.date)}</span>
+ <b>${esc(o.client||'Bez klienta')}</b><br>
+ ${esc(o.car||'')} ${o.reg?'• '+esc(o.reg):''}
+ <div class="small">${esc(o.job||'Brak opisu')}</div>
+ <div style="margin-top:7px"><strong>${money(o.total)}</strong> • zarobek ${money(o.profit)}</div>
+ <div class="actions">
+ <button class="secondary" onclick="editOrder(${o.id})">✏️ Edytuj</button>
+ <button class="danger" onclick="deleteOrder(${o.id})">🗑️ Usuń</button>
+ </div></div>`).join(''):'<div class="small">Brak zleceń.</div>';
+ const m=today().slice(0,7), mo=orders.filter(o=>o.date.startsWith(m));
+ document.getElementById('monthSales').textContent=money(mo.reduce((a,o)=>a+o.total,0));
+ document.getElementById('monthProfit').textContent=money(mo.reduce((a,o)=>a+o.profit,0));
+}
+function editOrder(id){
+ const o=orders.find(x=>x.id===id); if(!o)return;
+ editingId=id; ['date','phone','client','car','reg','mileage','vin','job','labor','notes'].forEach(k=>setv(k,o[k]));
+ document.getElementById('parts').innerHTML=''; (o.parts||[]).forEach(p=>addPart(p.name,p.cost,p.sale)); if(!(o.parts||[]).length)addPart();
+ calc(); showNew(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteOrder(id){
+ if(!confirm('Usunąć to zlecenie?'))return;
+ orders=orders.filter(o=>o.id!==id); localStorage.setItem(KEY,JSON.stringify(orders)); renderHistory();
+}
+setv('date',today()); addPart(); calc();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
